@@ -56,11 +56,7 @@ sub validate_args {
 sub execute {
     my ($self, $opt, $args) = @_;
 
-    my $result = $opt->{blortex} ? blortex() : blort();
-
-    recheck($result) if $opt->{recheck};
-
-    print $result;
+    say 'hello';
 }
 
 
