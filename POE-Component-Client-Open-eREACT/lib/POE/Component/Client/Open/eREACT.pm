@@ -22,6 +22,11 @@ use feature 'say';
 use strict;
 use warnings;
 
+# Internal perl modules (core,recommended)
+use utf8;
+use open qw(:std :utf8);
+use experimental qw(signatures);
+
 # External modules
 
 # Version of this software

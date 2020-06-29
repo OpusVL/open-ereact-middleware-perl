@@ -1,8 +1,8 @@
-package App::OpusVL::Open::eREACT;
+#!/usr/bin/env perl
 
 =head1 NAME
 
-App::OpusVL::Open::eREACT - Module abstract placeholder text
+oe - Open eReact instance
 
 =head1 SYNOPSIS
 
@@ -26,14 +26,13 @@ use open qw(:std :utf8);
 use experimental qw(signatures);
 
 # External modules
-use App::Cmd::Setup -app;
+use App::OpusVL::Open::eREACT;
 
 # Version of this software
 our $VERSION = '0.001';
 
 # Primary code block
-
-
+exit(App::OpusVL::Open::eREACT->run());
 
 =head1 AUTHOR
 

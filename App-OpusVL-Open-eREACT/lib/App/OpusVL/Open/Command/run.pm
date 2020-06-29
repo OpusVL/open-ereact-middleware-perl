@@ -1,8 +1,8 @@
-package App::OpusVL::Open::eREACT;
+package App::OpusVL::Open::eREACT::Command::run;
 
 =head1 NAME
 
-App::OpusVL::Open::eREACT - Module abstract placeholder text
+App::OpusVL::Open::eREACT::Command::run - Module abstract placeholder text
 
 =head1 SYNOPSIS
 
@@ -26,13 +26,42 @@ use open qw(:std :utf8);
 use experimental qw(signatures);
 
 # External modules
-use App::Cmd::Setup -app;
+use App::OpusVL::Open::eReact -command;
 
 # Version of this software
 our $VERSION = '0.001';
 
 # Primary code block
+sub abstract { 
+    "Primary function"
+}
 
+sub description { 
+    "Long description ... its the server for all the workers TODO"
+}
+
+sub opt_spec {
+    return (
+        [ "run|r",  "Run the application" ]
+    );
+}
+
+sub validate_args {
+    my ($self, $opt, $args) = @_;
+
+    # no args allowed but options!
+    $self->usage_error("No args allowed") if @$args;
+}
+
+sub execute {
+    my ($self, $opt, $args) = @_;
+
+    my $result = $opt->{blortex} ? blortex() : blort();
+
+    recheck($result) if $opt->{recheck};
+
+    print $result;
+}
 
 
 =head1 AUTHOR
@@ -45,7 +74,6 @@ This software is copyright (c) 2020 by OpusVL.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
-
 
 =cut
 
