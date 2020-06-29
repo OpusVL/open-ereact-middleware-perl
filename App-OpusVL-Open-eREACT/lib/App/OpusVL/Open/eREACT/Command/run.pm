@@ -26,7 +26,7 @@ use open qw(:std :utf8);
 use experimental qw(signatures);
 
 # External modules
-use App::OpusVL::Open::eReact -command;
+use App::OpusVL::Open::eREACT -command;
 
 # Version of this software
 our $VERSION = '0.001';
