@@ -2,3 +2,7 @@ Revision history for App::OpusVL::Open::eREACT
 
 {{NEXT}}
     - Started creating the initial layout of the App
+    - Added the run command
+    - Extended App::Cmd with the --help command
+    - Added License/Author notes to POD support@opusvl.com
+    - Added in POE

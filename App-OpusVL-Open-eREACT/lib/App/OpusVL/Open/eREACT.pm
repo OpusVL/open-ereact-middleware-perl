@@ -33,8 +33,6 @@ our $VERSION = '0.001';
 
 # Primary code block
 
-
-
 =head1 AUTHOR
 
 Paul G Webster <support@opusvl.com>
@@ -45,7 +43,6 @@ This software is copyright (c) 2020 by OpusVL.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
-
 
 =cut
 

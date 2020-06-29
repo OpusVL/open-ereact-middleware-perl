@@ -1,8 +1,8 @@
-package POE::Component::Client::Open::eREACT;
+package POE::Component::FunctionNet;
 
 =head1 NAME
 
-POE::Component::Client::Open::eREACT - Module abstract placeholder text
+POE::Component::FunctionNet - Module abstract placeholder text
 
 =head1 SYNOPSIS
 

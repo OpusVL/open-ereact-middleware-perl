@@ -27,6 +27,7 @@ use experimental qw(signatures);
 
 # External modules
 use App::OpusVL::Open::eREACT -command;
+use POE qw();
 
 # Version of this software
 our $VERSION = '0.001';
