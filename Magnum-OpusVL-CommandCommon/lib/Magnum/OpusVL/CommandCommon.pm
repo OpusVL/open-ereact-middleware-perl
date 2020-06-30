@@ -27,13 +27,28 @@ use utf8;
 use open qw(:std :utf8);
 use experimental qw(signatures);
 
+# Internal modules (same namespace)
+#use Magnum::OpusVL::CommandCommon::V1;
+
 # External modules
+use Module::Pluggable;
 
 # Version of this software
 our $VERSION = '0.001';
 
 # Primary code block
+sub new {
+    my ($class,$args) = @_;
 
+    my $self = bless {}, $class;
+
+    return $self;  
+}
+
+sub _find_plugins {
+    my $self    = @_;
+    return Magnum::OpusVL::CommandCommon->new()->plugins();
+}
 
 
 =head1 AUTHOR
