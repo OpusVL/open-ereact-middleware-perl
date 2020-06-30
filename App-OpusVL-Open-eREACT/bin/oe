@@ -32,7 +32,7 @@ use App::OpusVL::Open::eREACT;
 our $VERSION = '0.001';
 
 # Primary code block
-exit(App::OpusVL::Open::eREACT->run());
+exit(App::OpusVL::Open::eREACT->run() // 0);
 
 =head1 AUTHOR
 
