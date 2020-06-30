@@ -25,7 +25,10 @@ use POE;
 our $VERSION = '0.001';
 
 sub new {
-    my ($class) = @_;
+    my ($class,$args) = @_;
+
+    use Data::Dumper;
+    warn Dumper($args);
 
     my $self = bless {
         alias   => __PACKAGE__,

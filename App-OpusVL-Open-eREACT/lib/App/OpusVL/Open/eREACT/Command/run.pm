@@ -53,14 +53,20 @@ sub opt_spec {
 sub validate_args {
     my ($self, $opt, $args) = @_;
 
+    if (scalar(@{$args}) != 1) {
+        $self->usage_error(
+            "1 Argument in the style: BIND_IP:BIND_PORT is required."
+        );
+    }
+
     # no args allowed but options!
-    $self->usage_error("No args allowed") if @$args;
+    # $self->usage_error("No args allowed") if @$args;
 }
 
 sub execute {
     my ($self, $opt, $args) = @_;
 
-    $self->{core} = App::OpusVL::Open::eREACT::Core->new();
+    $self->{core} = App::OpusVL::Open::eREACT::Core->new($args);
     POE::Kernel->run();
 }
 
