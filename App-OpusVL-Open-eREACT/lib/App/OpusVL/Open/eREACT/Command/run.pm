@@ -27,7 +27,7 @@ use experimental qw(signatures);
 
 # External modules
 use App::OpusVL::Open::eREACT -command;
-use POE qw();
+use POE;
 
 # Version of this software
 our $VERSION = '0.001';
@@ -57,9 +57,37 @@ sub validate_args {
 sub execute {
     my ($self, $opt, $args) = @_;
 
-    say 'hello';
+    $self->{poe} = POE::Session->create(
+        object_states => [
+            $self => ['_start','_loop','_stop']
+        ]
+    );
+
+    POE::Kernel->run();
 }
 
+sub _start {
+    my ($kernel,$heap) = @_[KERNEL,HEAP];
+    $heap->{counter} = 0;
+    $kernel->yield('_loop');
+}
+
+sub _loop {
+    my ($kernel,$heap) = @_[KERNEL,HEAP];
+
+    if ($heap->{counter}++ >= 10) {
+        say "That's all folks.";
+        $kernel->yield('shutdown');
+    }
+    else {
+        say "tick";
+        $kernel->delay_add('_loop' => 1);
+    }
+}
+
+sub _stop {
+    say "_stop called";
+}
 
 =head1 AUTHOR
 
