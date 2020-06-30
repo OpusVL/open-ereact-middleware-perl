@@ -25,8 +25,11 @@ use utf8;
 use open qw(:std :utf8);
 use experimental qw(signatures);
 
-# External modules
+# Internal App modules
 use App::OpusVL::Open::eREACT -command;
+use App::OpusVL::Open::eREACT::Core;
+
+# External modules
 use POE;
 
 # Version of this software
@@ -57,36 +60,8 @@ sub validate_args {
 sub execute {
     my ($self, $opt, $args) = @_;
 
-    $self->{poe} = POE::Session->create(
-        object_states => [
-            $self => ['_start','_loop','_stop']
-        ]
-    );
-
+    $self->{core} = App::OpusVL::Open::eREACT::Core->new();
     POE::Kernel->run();
-}
-
-sub _start {
-    my ($kernel,$heap) = @_[KERNEL,HEAP];
-    $heap->{counter} = 0;
-    $kernel->yield('_loop');
-}
-
-sub _loop {
-    my ($kernel,$heap) = @_[KERNEL,HEAP];
-
-    if ($heap->{counter}++ >= 10) {
-        say "That's all folks.";
-        $kernel->yield('shutdown');
-    }
-    else {
-        say "tick";
-        $kernel->delay_add('_loop' => 1);
-    }
-}
-
-sub _stop {
-    say "_stop called";
 }
 
 =head1 AUTHOR
