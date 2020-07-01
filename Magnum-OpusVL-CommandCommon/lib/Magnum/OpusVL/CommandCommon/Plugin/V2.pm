@@ -41,20 +41,10 @@ sub new {
         functions   =>  {
             count_occurrences => \&occurrences
         },
-        version     =>  1,
+        version     =>  2,
     }, $class;
 
     return $self;  
-}
-
-sub count_occurrences($match_criteria,$data) {
-    if (!$match_criteria || !$data)  {
-        return;
-    }
-
-    my $count = () = $data =~ /$match_criteria/g;
-
-    return $count;
 }
 
 =head1 AUTHOR

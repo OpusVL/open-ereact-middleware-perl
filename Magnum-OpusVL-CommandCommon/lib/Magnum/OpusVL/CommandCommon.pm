@@ -40,6 +40,8 @@ use experimental qw(signatures);
 
 # External modules
 use Module::Pluggable instantiate => 'new';
+use Carp;
+use Data::Dumper;
 
 # Version of this software
 our $VERSION = '0.001';
@@ -56,31 +58,56 @@ Likewise to use V3, ->new(3)
 
 # Primary code block
 sub new {
-    my ($class,$args) = @_;
+    my ($class,$target_version) = @_;
 
-    my $self = bless {
-        args    =>  $args
-    }, $class;
+    if (!$target_version || $target_version !~ m/^\d+$/) {
+        croak '->new() requires one argument: version, e.g.: ->new(2)';
+    }
 
-    my @plugins = $self->plugins();
-    my $plugins;
+    my $self = bless {}, $class;
 
-    foreach my $plugin (@plugins) {
-        my $name        =   ref $plugin;
-        my $version     =   $plugin->{version};
-        say "Found: $name";
-        foreach my $plugin (@plugins) {
-            my $name        =   ref $plugin;
-            my $version     =   $plugin->{version};
+    # A place to store a copy of the plugins for sorting
+    my $plugin_sort;
 
-            foreach my $function (keys %{$plugin->{functions}}) {
-                push @{$plugins->{$function}},$version;
+    # Instanciate and store the plugins.
+    foreach my $plugin ($self->plugins()) {
+        my $plugin_name             =   ref $plugin;
+
+        # Store the plugin in $self
+        $self->{plugins}->{$plugin_name}       =   $plugin;
+
+        # Find the plugin version
+        my $plugin_version          =
+            $self->{plugins}->{$plugin_name}->{version};
+
+        # Do not process plugins we do not require
+        if ($plugin_version > $target_version) { next; }
+
+        # Look through availible functions and find the closest to our target
+        # version
+        foreach my $function (
+            keys %{ $self->{plugins}->{$plugin_name}->{functions} }
+        ) {
+            if (
+                !$plugin_sort->{$function} 
+                || 
+                $plugin_sort->{$function}->{version} < $target_version
+            )
+            {
+                $plugin_sort->{$function}->{version}    =   $plugin_version;
+                $plugin_sort->{$function}->{parent}     =   $plugin_name;
             }
         }
     }
 
-    use Data::Dumper;
-    say Dumper($plugins);
+    # Loop through the pluginsort and build the interface
+    foreach my $function_name (keys %{$plugin_sort}) {
+        my $function                    =   $plugin_sort->{$function_name};
+        my $plugin_name                 =   $function->{parent};
+
+        $self->{interface}->{$function_name} =
+            sub { $self->{plugins}->{$plugin_name}->$function_name(@_) };
+    }
 
     return $self;  
 }
@@ -92,10 +119,12 @@ Run a function in the CommandCommon plugin stack
 =cut
 
 sub exec {
-    my ($kernel,$heap,$function,@args) = @_;
+    my ($self,$function,@args) = @_;
+
+    return $self->{interface}->{$function}(@args);
 }
 
-sub _find_plugins {
+sub show_plugins {
     my $self    = @_;
 
     my @plugins = $self->plugins();
@@ -106,9 +135,11 @@ sub _find_plugins {
         my $version     =   $plugin->{version};
 
         foreach my $function (keys %{$plugin->{functions}}) {
-            say "Function: $function";
+            $plugins->{$name}->{$function} = sub{$plugin->$function};
         }
     }
+
+    return $plugins;
 }
 
 

@@ -39,7 +39,8 @@ sub new {
 
     my $self = bless {
         functions   =>  {
-            count_occurrences => \&occurrences
+            count_occurrences   =>  \&occurrences,
+            test_func           =>  \&test_func
         },
         version     =>  1,
     }, $class;
@@ -47,7 +48,7 @@ sub new {
     return $self;  
 }
 
-sub count_occurrences($match_criteria,$data) {
+sub count_occurrences($self,$match_criteria,$data) {
     if (!$match_criteria || !$data)  {
         return;
     }
