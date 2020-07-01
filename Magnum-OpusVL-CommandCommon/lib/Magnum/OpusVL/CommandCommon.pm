@@ -9,8 +9,12 @@ Magnum::OpusVL::CommandCommon - A common set of functions
 =for comment Brief examples of using the module.
 
     my $command = Magnum::OpusVL::CommandCommon->new(1);
-    my $count = 
-        $command->exec('count_occurences',qr/some_text/,'some_text and some_text');
+    my $count = $command->exec(
+        'count_occurences',
+        qr/some_text/,
+        'some_text and some_text'
+    );
+    say "Count: $count"; # 2
 
 =head1 DESCRIPTION
 
