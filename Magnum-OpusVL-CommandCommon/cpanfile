@@ -1,1 +1,3 @@
 requires 'perl' => '5.030000';
+requires 'Module::Runtime';
+requires 'Module::Pluggable';

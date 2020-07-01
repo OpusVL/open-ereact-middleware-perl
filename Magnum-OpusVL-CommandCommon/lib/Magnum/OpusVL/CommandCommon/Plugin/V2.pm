@@ -1,8 +1,8 @@
-package Magnum::OpusVL::CommandCommon::Plugin::V1;
+package Magnum::OpusVL::CommandCommon::Plugin::V2;
 
 =head1 NAME
 
-Magnum::OpusVL::CommandCommon::V1 - Version 1 common commands
+Magnum::OpusVL::CommandCommon::V2 - Version 2 common commands
 
 =head1 SYNOPSIS
 
