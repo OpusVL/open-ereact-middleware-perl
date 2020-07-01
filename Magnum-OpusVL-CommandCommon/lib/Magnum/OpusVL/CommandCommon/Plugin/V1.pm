@@ -39,7 +39,7 @@ sub new {
     my $self = bless {
         functions   =>  {
             count_occurrences   =>  \&count_occurrences,
-            extract_hostport    =>  \&extract_hostport,
+            split_on_seperator  =>  \&split_on_seperator,
         },
         version     =>  1,
     }, $class;
@@ -81,9 +81,9 @@ Will return a list of host and port.
 
 =cut
 
-sub extract_hostport($self,$hostport,$seperator = ':') {
+sub split_on_seperator($self,$hostport,$seperator = ':') {
     if (!$hostport) {
-        die "No value passed through to process.";
+        die "No value passed to process.";
     }
     my ($host,$port) = split(/$seperator/,$hostport,2);
     return ($host,$port);
