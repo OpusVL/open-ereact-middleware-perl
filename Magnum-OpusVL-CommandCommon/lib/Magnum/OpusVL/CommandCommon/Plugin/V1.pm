@@ -27,7 +27,14 @@ use utf8;
 use open qw(:std :utf8);
 use experimental qw(signatures);
 
-# External modules
+# External modules - Core
+use Carp;
+use Try::Tiny;
+
+# External modules - Net
+use Socket qw(PF_INET SOCK_STREAM pack_sockaddr_in inet_aton inet_pton);
+use IO::Socket qw(AF_INET AF_UNIX);
+use IO::Socket::INET;
 
 # Version of this software
 our $VERSION = '0.001';
@@ -40,6 +47,8 @@ sub new {
         functions   =>  {
             count_occurrences   =>  \&count_occurrences,
             split_on_seperator  =>  \&split_on_seperator,
+            test_tcp4_bind      =>  \&test_tcp4_bind,
+            valid_ipv4          =>  \&valid_ipv4,
         },
         version     =>  1,
     }, $class;
@@ -60,7 +69,7 @@ Will return the number of matches of arg1 in arg2.
 
 sub count_occurrences($self,$match_criteria,$data) {
     if (!$match_criteria || !$data)  {
-        die "Invalid arguments passed to function";
+        croak "Invalid arguments passed to function";
     }
 
     my $count = () = $data =~ /$match_criteria/g;
@@ -68,25 +77,79 @@ sub count_occurrences($self,$match_criteria,$data) {
     return $count;
 }
 
-=head2 extract_hostport
+=head2 split_on_seperator
 
-Extract the host/ip and port from a single word string, for example: 1.1.1.1:53
+Split a string into two components a head and a tail.
 
 Accepts 1 mandatory argument and 1 optional argument:
 
-    Arg1: The hostport set.
+    Arg1: The string to operate on.
     Arg2: The optional seperator, defaults to ':'.
 
-Will return a list of host and port.
+Will return a list containing 2 items the head and tail.
 
 =cut
 
-sub split_on_seperator($self,$hostport,$seperator = ':') {
-    if (!$hostport) {
-        die "No value passed to process.";
+sub split_on_seperator($self,$string,$seperator = ':') {
+    if (!$string) {
+        croak "No value passed to process.";
     }
-    my ($host,$port) = split(/$seperator/,$hostport,2);
-    return ($host,$port);
+    my ($head,$tail) = split(/$seperator/,$string,2);
+    return ($head,$tail);
+}
+
+=head2 test_tcp4_bind
+
+Attempt to bind a port on ipv4/tcp.
+
+If you wish to check for permission to just bind anyport, you should use '0'.
+
+Accepts 2 mandatory arguments:
+
+    Arg1: An ip
+    Arg2: A port
+
+Returns 0 on success and 1 on error.
+
+=cut 
+
+sub test_tcp4_bind($self,$bind_ip,$bind_port) {
+    if ($self->valid_ipv4($bind_ip)) { return 1; }
+
+    my $error_detected = 0;
+
+    my $server = IO::Socket->new(
+        Domain      => AF_INET,
+        Type        => SOCK_STREAM,
+        Proto       => 'tcp',
+        LocalHost   => $bind_ip,
+        LocalPort   => $bind_port,
+        ReusePort   => 1,
+        Listen      => 5,
+    ) || do { $error_detected = 1 };
+
+    return $error_detected;
+}
+
+=head2 valid_ipv4
+
+Check if the provided ip is a valid ipv4 address.
+
+Accepts 1 mandatory argument of an ipv4 address.
+
+Returns 0 if the address is valid, 1 if it is not.
+
+=cut
+
+sub valid_ipv4($self,$ipv4) {
+    my $error_detected = 0;
+    try {
+        inet_pton(AF_INET, $ipv4);
+    }
+    catch {
+        $error_detected = 1;
+    };
+    return $error_detected;
 }
 
 =head1 AUTHOR

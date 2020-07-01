@@ -27,6 +27,11 @@ in a later version but all versions are strictly callable.
 In the event a function is not availible in a version, the function will be 
 inherited from the previous version.
 
+The v1 commandset is considered extendable up until the release of v2, the
+latest version if always considered 'development' though no function that has
+been published will ever be removed. On the release of the next version the 
+previous one is considered permenantly frozen.
+
 =cut
 
 # Internal perl
@@ -45,7 +50,6 @@ use experimental qw(signatures);
 # External modules
 use Module::Pluggable instantiate => 'new';
 use Carp;
-use Try::Tiny;
 
 # Version of this software
 our $VERSION = '0.001';
@@ -123,12 +127,7 @@ Run a function in the CommandCommon plugin stack
 =cut
 
 sub exec($self,$function,@args) {
-    try {
-        return $self->{interface}->{$function}(@args);
-    }
-    catch {
-        croak $_;
-    };
+    return $self->{interface}->{$function}(@args);
 }
 
 sub _show_plugins($self) {
