@@ -39,8 +39,7 @@ sub new {
 
     my $self = bless {
         functions   =>  {
-            count_occurrences   =>  \&occurrences,
-            test_func           =>  \&test_func
+            count_occurrences   =>  \&count_occurrences
         },
         version     =>  1,
     }, $class;
@@ -68,7 +67,6 @@ This software is copyright (c) 2020 by Paul G Webster.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
-
 
 =cut
 

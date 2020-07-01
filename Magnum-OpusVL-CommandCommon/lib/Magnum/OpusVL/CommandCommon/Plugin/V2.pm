@@ -39,7 +39,6 @@ sub new {
 
     my $self = bless {
         functions   =>  {
-            count_occurrences => \&occurrences
         },
         version     =>  2,
     }, $class;

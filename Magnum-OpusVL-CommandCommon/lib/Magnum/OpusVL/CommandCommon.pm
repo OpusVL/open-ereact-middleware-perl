@@ -45,7 +45,7 @@ use experimental qw(signatures);
 # External modules
 use Module::Pluggable instantiate => 'new';
 use Carp;
-use Data::Dumper;
+use Try::Tiny;
 
 # Version of this software
 our $VERSION = '0.001';
@@ -75,10 +75,10 @@ sub new {
 
     # Instanciate and store the plugins.
     foreach my $plugin ($self->plugins()) {
-        my $plugin_name             =   ref $plugin;
+        my $plugin_name                     =   ref $plugin;
 
         # Store the plugin in $self
-        $self->{plugins}->{$plugin_name}       =   $plugin;
+        $self->{plugins}->{$plugin_name}    =   $plugin;
 
         # Find the plugin version
         my $plugin_version          =
@@ -94,7 +94,7 @@ sub new {
         ) {
             if (
                 !$plugin_sort->{$function} 
-                || 
+                ||
                 $plugin_sort->{$function}->{version} < $target_version
             )
             {
@@ -104,7 +104,7 @@ sub new {
         }
     }
 
-    # Loop through the pluginsort and build the interface
+    # Loop through the plugin sort and build the interface
     foreach my $function_name (keys %{$plugin_sort}) {
         my $function                    =   $plugin_sort->{$function_name};
         my $plugin_name                 =   $function->{parent};
@@ -122,24 +122,27 @@ Run a function in the CommandCommon plugin stack
 
 =cut
 
-sub exec {
-    my ($self,$function,@args) = @_;
-
-    return $self->{interface}->{$function}(@args);
+sub exec($self,$function,@args) {
+    try {
+        return $self->{interface}->{$function}(@args);
+    }
+    catch {
+        croak $_;
+    };
 }
 
-sub show_plugins {
-    my $self    = @_;
-
-    my @plugins = $self->plugins();
+sub _show_plugins($self) {
     my $plugins;
 
-    foreach my $plugin (@plugins) {
+    foreach my $plugin ($self->plugins()) {
         my $name        =   ref $plugin;
         my $version     =   $plugin->{version};
 
+        # Incase we have a version with no functions (likely in development)
+        $plugins->{$name} = [];
+
         foreach my $function (keys %{$plugin->{functions}}) {
-            $plugins->{$name}->{$function} = sub{$plugin->$function};
+            push @{$plugins->{$name}},$function;
         }
     }
 
