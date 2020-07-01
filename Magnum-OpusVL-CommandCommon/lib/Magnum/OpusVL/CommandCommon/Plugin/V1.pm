@@ -82,6 +82,9 @@ Will return a list of host and port.
 =cut
 
 sub extract_hostport($self,$hostport,$seperator = ':') {
+    if (!$hostport) {
+        die "No value passed through to process.";
+    }
     my ($host,$port) = split(/$seperator/,$hostport,2);
     return ($host,$port);
 }
