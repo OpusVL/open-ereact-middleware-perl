@@ -30,6 +30,7 @@ use App::OpusVL::Open::eREACT -command;
 use App::OpusVL::Open::eREACT::Core;
 
 # External modules
+use Magnum::OpusVL::CommandCommon;
 use POE;
 
 # Version of this software
@@ -53,11 +54,16 @@ sub opt_spec {
 sub validate_args {
     my ($self, $opt, $args) = @_;
 
-    if (scalar(@{$args}) != 1) {
+    my $common = Magnum::OpusVL::CommandCommon->new();
+    my ($bind_ip,$bind_port) = $common->extract_hostport($args->[0]);
+
+    if (!$bind_port) {
         $self->usage_error(
             "1 Argument in the style: BIND_IP:BIND_PORT is required."
         );
     }
+
+    my $bind_test = $args->[0] || '';
 
     # no args allowed but options!
     # $self->usage_error("No args allowed") if @$args;
