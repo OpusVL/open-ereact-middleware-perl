@@ -1,9 +1,9 @@
-package App::OpusVL::Open::eREACT::Core;
+package App::OpusVL::Open::eREACT::Command::slave;;
 
 
 =head1 NAME
 
-App::OpusVL::Open::eREACT::Command::Core - Primary engine
+App::OpusVL::Open::eREACT::Command::slave - Create a worker in another process
 
 =cut
 
@@ -36,13 +36,24 @@ sub new {
 
     $self->{session} = POE::Session->create(
         object_states   => [
-            $self => [qw(_start _loop _stop)]
+            $self => [qw(
+                _start
+                _loop
+                _stop
+                task_stderr
+                task_stdout
+                task_exit
+                sig_child
+            )]
         ],
         heap            =>  {
             common          =>  Magnum::OpusVL::CommandCommon->new(1),
             config          =>  {
                 bind_ip         =>  $bind_ip,
-                bind_port       =>  $bind_port
+                bind_port       =>  $bind_port,
+                tasks           =>  {
+                    
+                }
             }
         }
     );
@@ -67,6 +78,13 @@ sub _loop {
 
 sub _stop {
     say "_stop called";
+}
+
+sub sig_child {
+  my ($heap, $sig, $pid, $exit_val) = @_[HEAP, ARG0, ARG1, ARG2];
+  my $details = delete $heap->{$pid};
+
+  # warn "$$: Child $pid exited";
 }
 
 1;

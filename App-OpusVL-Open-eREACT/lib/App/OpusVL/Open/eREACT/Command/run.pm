@@ -30,6 +30,7 @@ use App::OpusVL::Open::eREACT -command;
 use App::OpusVL::Open::eREACT::Core;
 
 # External modules
+use Carp;
 use Magnum::OpusVL::CommandCommon;
 use POE;
 
@@ -54,16 +55,18 @@ sub opt_spec {
 sub validate_args {
     my ($self, $opt, $args) = @_;
 
-    my $common = Magnum::OpusVL::CommandCommon->new();
-    my ($bind_ip,$bind_port) = $common->extract_hostport($args->[0]);
+    my $common = Magnum::OpusVL::CommandCommon->new(1);
+    my ($bind_ip,$bind_port) = $common->exec('split_on_seperator',$args->[0]);
+    my ($bind_success) = $common->exec('test_tcp4_bind',$bind_ip,$bind_port);
 
-    if (!$bind_port) {
-        $self->usage_error(
-            "1 Argument in the style: BIND_IP:BIND_PORT is required."
-        );
+    if ($bind_success ) {
+        # 0 = no errors
+        # 1 = errors
+        $self->usage_error("Could not bind to $bind_ip:$bind_port");
     }
 
-    my $bind_test = $args->[0] || '';
+    $opt->{bind}->{ip}      =   $bind_ip;
+    $opt->{bind}->{port}    =   $bind_port;
 
     # no args allowed but options!
     # $self->usage_error("No args allowed") if @$args;
@@ -72,7 +75,10 @@ sub validate_args {
 sub execute {
     my ($self, $opt, $args) = @_;
 
-    $self->{core} = App::OpusVL::Open::eREACT::Core->new($args);
+    $self->{core} = App::OpusVL::Open::eREACT::Core->new(
+        $opt->{bind}->{ip},
+        $opt->{bind}->{port}
+    );
     POE::Kernel->run();
 }
 
