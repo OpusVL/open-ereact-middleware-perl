@@ -67,24 +67,80 @@ sub new {
 sub _start {
     my ($kernel,$heap) = @_[KERNEL,HEAP];
 
+    $kernel->yield('_loop');
+}
 
+sub _add_worker {
+    my ($kernel,$heap) = @_[KERNEL,HEAP];
+
+    my $task = POE::Wheel::Run->new(
+        Program      => ['oe','child'],
+        StdoutFilter => POE::Filter::Reference->new(),
+        StdoutEvent  => "task_result",
+        StderrEvent  => "task_debug",
+        CloseEvent   => "task_done",
+    );
+
+    my $childwid    =  $task->ID;
+    my $childpid    =  $task->PID;
+
+    $kernel->sig_child($childpid, "got_child_signal");
+
+    $heap->{children_by_wid}->{$childwid} = $task;
+    $heap->{children_by_pid}->{$childpid} = $task;
+
+    my $filter = POE::Filter::Reference->new();
 }
 
 sub _loop {
     my ($kernel,$heap) = @_[KERNEL,HEAP];
 
-
+    $kernel->delay_add('_loop' => 1);
 }
 
 sub _stop {
     say "_stop called";
 }
 
-sub sig_child {
-  my ($heap, $sig, $pid, $exit_val) = @_[HEAP, ARG0, ARG1, ARG2];
-  my $details = delete $heap->{$pid};
+sub task_stderr {
+    my ($stdout_line, $wheel_id) = @_[ARG0, ARG1];
 
-  # warn "$$: Child $pid exited";
+    my $child = $_[HEAP]{children_by_wid}{$wheel_id};
+    print "pid ", $child->PID, " STDERR: $stdout_line\n";
+}
+
+sub task_stdout {
+    my ($stderr_line, $wheel_id) = @_[ARG0, ARG1];
+
+    my $child = $_[HEAP]{children_by_wid}{$wheel_id};
+    print "pid ", $child->PID, " STDERR: $stderr_line\n";
+}
+
+sub task_exit {
+    my ($heap,$wheel_id) = @_[HEAP,ARG0];
+
+    my $child = delete $heap->{children_by_wid}->{$wheel_id};
+
+  # May have been reaped by on_child_signal().
+    unless (defined $child) {
+        print "wid $wheel_id closed all pipes.\n";
+        return;
+    }
+
+    print "pid ", $child->PID, " closed all pipes.\n";
+    delete $heap->{children_by_pid}->{$child->PID};
+}
+
+sub sig_child {
+    my ($heap,$pid,$status) = @_[HEAP,ARG0,ARG1];
+
+    print "pid $pid exited with status $status.\n";
+    my $child = delete $heap->{children_by_pid}->{$pid};
+
+    # May have been reaped by on_child_close().
+    return unless defined $child;
+
+    delete $heap->{children_by_wid}->{$child->ID};
 }
 
 1;

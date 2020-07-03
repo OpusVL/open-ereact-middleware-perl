@@ -62,6 +62,8 @@ sub validate_args {
 sub execute {
     my ($self, $opt, $args) = @_;
 
+    binmode(STDOUT);
+
     say "execute child";
 
     POE::Kernel->run();
