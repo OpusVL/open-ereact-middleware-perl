@@ -1,5 +1,4 @@
-package App::OpusVL::Open::eREACT::Core;
-
+package App::OpusVL::Open::eREACT::Client;
 
 =head1 NAME
 
@@ -19,7 +18,7 @@ use open qw(:std :utf8);
 use experimental qw(signatures);
 
 # External modules
-use POE qw(Wheel::Run Filter::Reference Filter::Line);
+use POE qw(Filter::Reference Wheel::ReadWrite);
 use Carp;
 use Acme::CommandCommon;
 
@@ -41,7 +40,6 @@ sub new {
                 _loop
                 _stop
                 _add_worker
-                task_stderr
                 task_stdout
                 task_exit
                 sig_child
@@ -49,6 +47,15 @@ sub new {
         ],
         heap            =>  {
             common          =>  Acme::CommandCommon->new(1),
+            com         =>  POE::Wheel::ReadWrite->new(
+                Handle => IO::Socket::INET->new(
+                    Filter          =>  Filter::Reference->new(),
+                    InputHandle     =>  \*STDIN,
+                    OutputHandle    =>  \*STDOUT,
+                ),
+                InputEvent => 'task_stdout',
+                ErrorEvent => 'task_exit',
+            ),
             config          =>  {
                 bind_ip         =>  $bind_ip,
                 bind_port       =>  $bind_port,
@@ -67,51 +74,19 @@ sub new {
 sub _start {
     my ($kernel,$heap) = @_[KERNEL,HEAP];
 
-    $kernel->yield('_add_worker');
-
     $kernel->yield('_loop');
-}
-
-sub _add_worker {
-    my ($kernel,$heap) = @_[KERNEL,HEAP];
-
-    my $task = POE::Wheel::Run->new(
-        Program      => ['oe','child'],
-        #StdoutFilter => POE::Filter::Reference->new(),
-        StdoutFilter => POE::Filter::Line->new(),
-        StdoutEvent  => "task_stdout",
-        StderrEvent  => "task_stderr",
-        CloseEvent   => "task_exit",
-    );
-
-    my $childwid    =  $task->ID;
-    my $childpid    =  $task->PID;
-
-    say "Child started with pid $childpid";
-
-    $kernel->sig_child($childpid, "got_child_signal");
-
-    $heap->{children_by_wid}->{$childwid} = $task;
-    $heap->{children_by_pid}->{$childpid} = $task;
-
-    my $filter = POE::Filter::Reference->new();
 }
 
 sub _loop {
     my ($kernel,$heap) = @_[KERNEL,HEAP];
+
+    $heap->com->put("hello!");
 
     $kernel->delay_add('_loop' => 1);
 }
 
 sub _stop {
     say "_stop called";
-}
-
-sub task_stderr {
-    my ($heap, $stdout_line, $wheel_id) = @_[HEAP, ARG0, ARG1];
-
-    my $child = $heap->{children_by_wid}->{$wheel_id};
-    print "pid ", $child->PID, " STDERR: $stdout_line\n";
 }
 
 sub task_stdout {
