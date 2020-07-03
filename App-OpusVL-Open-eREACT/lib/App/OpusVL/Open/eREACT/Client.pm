@@ -39,17 +39,15 @@ sub new {
                 _start
                 _loop
                 _stop
-                _add_worker
                 task_stdout
                 task_exit
-                sig_child
             )]
         ],
         heap            =>  {
             common          =>  Acme::CommandCommon->new(1),
-            com         =>  POE::Wheel::ReadWrite->new(
+            com             =>  POE::Wheel::ReadWrite->new(
                 Handle => IO::Socket::INET->new(
-                    Filter          =>  Filter::Reference->new(),
+                    Filter          =>  POE::Filter::Reference->new(),
                     InputHandle     =>  \*STDIN,
                     OutputHandle    =>  \*STDOUT,
                 ),
@@ -74,18 +72,22 @@ sub new {
 sub _start {
     my ($kernel,$heap) = @_[KERNEL,HEAP];
 
+    say STDERR "_start triggered";
+
     $kernel->yield('_loop');
 }
 
 sub _loop {
     my ($kernel,$heap) = @_[KERNEL,HEAP];
 
-    $heap->com->put("hello!");
+    say STDERR "_loop triggered";
+    $heap->{com}->put("hello!");
 
     $kernel->delay_add('_loop' => 1);
 }
 
 sub _stop {
+    say STDERR "_stop triggered";
     say "_stop called";
 }
 

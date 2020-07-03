@@ -77,8 +77,7 @@ sub _add_worker {
 
     my $task = POE::Wheel::Run->new(
         Program      => ['oe','child'],
-        #StdoutFilter => POE::Filter::Reference->new(),
-        StdoutFilter => POE::Filter::Line->new(),
+        StdoutFilter => POE::Filter::Reference->new(),
         StdoutEvent  => "task_stdout",
         StderrEvent  => "task_stderr",
         CloseEvent   => "task_exit",
@@ -93,8 +92,6 @@ sub _add_worker {
 
     $heap->{children_by_wid}->{$childwid} = $task;
     $heap->{children_by_pid}->{$childpid} = $task;
-
-    my $filter = POE::Filter::Reference->new();
 }
 
 sub _loop {
