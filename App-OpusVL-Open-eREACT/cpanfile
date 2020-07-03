@@ -1,1 +1,5 @@
 requires 'perl' => '5.030000';
+requires 'Storable';
+requires 'POE';
+requires 'POE::Filter::Reference';
+requires 'POE::Wheel::Run';

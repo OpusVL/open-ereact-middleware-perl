@@ -43,6 +43,7 @@ sub new {
                 _add_worker
                 task_stderr
                 task_stdout
+                task_stdin
                 task_exit
                 sig_child
             )]
@@ -75,12 +76,20 @@ sub _start {
 sub _add_worker {
     my ($kernel,$heap) = @_[KERNEL,HEAP];
 
+    my $filter_ref =
+        POE::Filter::Reference->new(Serializer => 'Storable');
+    my $filter_line =
+        POE::Filter::Line->new();
+
     my $task = POE::Wheel::Run->new(
-        Program      => ['oe','child'],
-        StdoutFilter => POE::Filter::Reference->new(),
-        StdoutEvent  => "task_stdout",
-        StderrEvent  => "task_stderr",
-        CloseEvent   => "task_exit",
+        Program         =>  ['oe','child'],
+        StdinFilter     =>  $filter_ref,
+        StdoutFilter    =>  $filter_line,
+        StderrFilter    =>  $filter_ref,
+        StdoutEvent     =>  "task_stdout",
+        StderrEvent     =>  "task_stderr",
+        StdinEvent      =>  "task_stdin",
+        CloseEvent      =>  "task_exit",
     );
 
     my $childwid    =  $task->ID;
@@ -107,8 +116,10 @@ sub _stop {
 sub task_stderr {
     my ($heap, $stdout_line, $wheel_id) = @_[HEAP, ARG0, ARG1];
 
+    my $stdout = $stdout_line->[0];
+
     my $child = $heap->{children_by_wid}->{$wheel_id};
-    print "pid ", $child->PID, " STDERR: $stdout_line\n";
+    print "pid ", $child->PID, " STDERR: $stdout\n";
 }
 
 sub task_stdout {
@@ -118,13 +129,20 @@ sub task_stdout {
     print "pid ", $child->PID, " STDOUT: $stderr_line\n";
 }
 
+sub task_stdin {
+    my ($heap, $stderr_line, $wheel_id) = @_[HEAP, ARG0, ARG1];
+
+    my $child = $heap->{children_by_wid}->{$wheel_id};
+    print "pid ", $child->PID, " STDIN: $stderr_line\n";
+}
+
 sub task_exit {
     my ($heap,$wheel_id) = @_[HEAP,ARG0];
 
     my $child = delete $heap->{children_by_wid}->{$wheel_id};
 
   # May have been reaped by on_child_signal().
-    unless (defined $child) {
+     unless (defined $child) {
         print "wid $wheel_id closed all pipes.\n";
         return;
     }

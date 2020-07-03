@@ -18,7 +18,7 @@ use open qw(:std :utf8);
 use experimental qw(signatures);
 
 # External modules
-use POE qw(Filter::Reference Wheel::ReadWrite);
+use POE qw(Filter::Reference Wheel::ReadWrite Filter::Line);
 use Carp;
 use Acme::CommandCommon;
 
@@ -39,21 +39,13 @@ sub new {
                 _start
                 _loop
                 _stop
+                task_stdin
                 task_stdout
                 task_exit
             )]
         ],
         heap            =>  {
             common          =>  Acme::CommandCommon->new(1),
-            com             =>  POE::Wheel::ReadWrite->new(
-                Handle => IO::Socket::INET->new(
-                    Filter          =>  POE::Filter::Reference->new(),
-                    InputHandle     =>  \*STDIN,
-                    OutputHandle    =>  \*STDOUT,
-                ),
-                InputEvent => 'task_stdout',
-                ErrorEvent => 'task_exit',
-            ),
             config          =>  {
                 bind_ip         =>  $bind_ip,
                 bind_port       =>  $bind_port,
@@ -72,7 +64,13 @@ sub new {
 sub _start {
     my ($kernel,$heap) = @_[KERNEL,HEAP];
 
-    say STDERR "_start triggered";
+    $heap->{com} = POE::Wheel::ReadWrite->new(
+        InputHandle     =>  *STDIN,
+        OutputHandle    =>  *STDERR,
+        Filter          =>  POE::Filter::Reference->new(Serializer => 'Storable'),
+        InputEvent      =>  "task_stdin",
+    );
+
 
     $kernel->yield('_loop');
 }
@@ -80,15 +78,12 @@ sub _start {
 sub _loop {
     my ($kernel,$heap) = @_[KERNEL,HEAP];
 
-    say STDERR "_loop triggered";
-    $heap->{com}->put("hello!");
+    $heap->{com}->put(['TEST']);
 
     $kernel->delay_add('_loop' => 1);
 }
 
 sub _stop {
-    say STDERR "_stop triggered";
-    say "_stop called";
 }
 
 sub task_stdout {
@@ -96,6 +91,11 @@ sub task_stdout {
 
     my $child = $heap->{children_by_wid}->{$wheel_id};
     print "pid ", $child->PID, " STDOUT: $stderr_line\n";
+}
+
+sub task_stdin {
+    my ($input, $wheel_id) = @_[ARG0, ARG1];
+    warn $input;
 }
 
 sub task_exit {
