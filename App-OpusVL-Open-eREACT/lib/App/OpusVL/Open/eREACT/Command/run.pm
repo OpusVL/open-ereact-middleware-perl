@@ -52,29 +52,29 @@ sub opt_spec {
     );
 }
 
-sub validate_args {
-    my ($self, $opt, $args) = @_;
+sub usage_desc {
+    return "test";
+}
 
+sub validate_args($self, $opt, $args) {
     my $common = Acme::CommandCommon->new(1);
-    my ($bind_ip,$bind_port) = $common->exec('split_on_seperator',$args->[0]);
-    my ($bind_success) = $common->exec('test_tcp4_bind',$bind_ip,$bind_port);
 
-    if ($bind_success ) {
-        # 0 = no errors
-        # 1 = errors
+    if ($common->arrayref_length($args) != 1) {
+        $self->usage_error("Requires a bind server:port using 1 argument.");
+    }
+
+    my ($bind_ip,$bind_port) = $common->exec('split_on_seperator',$args->[0]);
+    my ($bind_failure) = $common->exec('test_tcp4_bind',$bind_ip,$bind_port);
+
+    if ($bind_failure) {
         $self->usage_error("Could not bind to $bind_ip:$bind_port");
     }
 
     $opt->{bind}->{ip}      =   $bind_ip;
     $opt->{bind}->{port}    =   $bind_port;
-
-    # no args allowed but options!
-    # $self->usage_error("No args allowed") if @$args;
 }
 
-sub execute {
-    my ($self, $opt, $args) = @_;
-
+sub execute($self, $opt, $args) {
     $self->{core} = App::OpusVL::Open::eREACT::Core->new(
         $opt->{bind}->{ip},
         $opt->{bind}->{port}

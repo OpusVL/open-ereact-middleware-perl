@@ -1,4 +1,4 @@
-package App::OpusVL::Open::eREACT::Command::slave;
+package App::OpusVL::Open::eREACT::Command::child;
 
 =head1 NAME
 
@@ -39,7 +39,7 @@ our $VERSION = '0.001';
 
 # Primary code block
 sub abstract { 
-    "Create a slave process for handling incoming connections"
+    "Create a child process for handling incoming connections"
 }
 
 sub description { 
@@ -48,7 +48,7 @@ sub description {
 
 sub opt_spec {
     return (
-        [ "run|r",  "Run the application" ]
+        # Do not return anything this is a hidden call
     );
 }
 
@@ -62,6 +62,7 @@ sub validate_args {
 sub execute {
     my ($self, $opt, $args) = @_;
 
+    say "execute child";
 
     POE::Kernel->run();
 }
