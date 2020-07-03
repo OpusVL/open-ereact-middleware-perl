@@ -64,9 +64,15 @@ sub execute {
 
     binmode(STDOUT);
 
-    say "execute child";
+    foreach my $num ([1..100]) {
 
-    POE::Kernel->run();
+        say "execute child";
+        say STDERR "Yo";
+
+        sleep 1;
+    }
+
+    #POE::Kernel->run();
 }
 
 =head1 AUTHOR
