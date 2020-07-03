@@ -31,7 +31,7 @@ use App::OpusVL::Open::eREACT::Core;
 
 # External modules
 use Carp;
-use Magnum::OpusVL::CommandCommon;
+use Acme::CommandCommon;
 use POE;
 
 # Version of this software
@@ -55,7 +55,7 @@ sub opt_spec {
 sub validate_args {
     my ($self, $opt, $args) = @_;
 
-    my $common = Magnum::OpusVL::CommandCommon->new(1);
+    my $common = Acme::CommandCommon->new(1);
     my ($bind_ip,$bind_port) = $common->exec('split_on_seperator',$args->[0]);
     my ($bind_success) = $common->exec('test_tcp4_bind',$bind_ip,$bind_port);
 

@@ -1,9 +1,16 @@
-package App::OpusVL::Open::eREACT::Command::slave;;
-
+package App::OpusVL::Open::eREACT::Command::slave;
 
 =head1 NAME
 
-App::OpusVL::Open::eREACT::Command::slave - Create a worker in another process
+App::OpusVL::Open::eREACT::Command::run - Module abstract placeholder text
+
+=head1 SYNOPSIS
+
+=for comment Brief examples of using the module.
+
+=head1 DESCRIPTION
+
+=for comment The module's description.
 
 =cut
 
@@ -18,73 +25,58 @@ use utf8;
 use open qw(:std :utf8);
 use experimental qw(signatures);
 
+# Internal App modules
+use App::OpusVL::Open::eREACT -command;
+use App::OpusVL::Open::eREACT::Core;
+
 # External modules
-use POE qw(Wheel::Run Filter::Reference);
 use Carp;
-use Magnum::OpusVL::CommandCommon;
+use Acme::CommandCommon;
+use POE;
 
 # Version of this software
 our $VERSION = '0.001';
 
-sub new {
-    my ($class,$bind_ip,$bind_port) = @_;
+# Primary code block
+sub abstract { 
+    "Create a slave process for handling incoming connections"
+}
 
-    my $self = bless {
-        alias   => __PACKAGE__,
-        session => 0,
-    }, $class;
+sub description { 
+    "Long description"
+}
 
-    $self->{session} = POE::Session->create(
-        object_states   => [
-            $self => [qw(
-                _start
-                _loop
-                _stop
-                task_stderr
-                task_stdout
-                task_exit
-                sig_child
-            )]
-        ],
-        heap            =>  {
-            common          =>  Magnum::OpusVL::CommandCommon->new(1),
-            config          =>  {
-                bind_ip         =>  $bind_ip,
-                bind_port       =>  $bind_port,
-                tasks           =>  {
-                    
-                }
-            }
-        }
+sub opt_spec {
+    return (
+        [ "run|r",  "Run the application" ]
     );
-
-    $self->{id} = $self->{session}->ID;
-
-    return $self;  
 }
 
+sub validate_args {
+    my ($self, $opt, $args) = @_;
 
-sub _start {
-    my ($kernel,$heap) = @_[KERNEL,HEAP];
-
-
+    # no args allowed but options!
+    $self->usage_error("No args allowed") if @$args;
 }
 
-sub _loop {
-    my ($kernel,$heap) = @_[KERNEL,HEAP];
+sub execute {
+    my ($self, $opt, $args) = @_;
 
 
+    POE::Kernel->run();
 }
 
-sub _stop {
-    say "_stop called";
-}
+=head1 AUTHOR
 
-sub sig_child {
-  my ($heap, $sig, $pid, $exit_val) = @_[HEAP, ARG0, ARG1, ARG2];
-  my $details = delete $heap->{$pid};
+Paul G Webster <support@opusvl.com>
 
-  # warn "$$: Child $pid exited";
-}
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2020 by OpusVL.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+=cut
 
 1;
