@@ -69,28 +69,28 @@ sub _start {
     my ($kernel,$heap) = @_[KERNEL,HEAP];
 
     $kernel->yield('_add_worker');
-
     $kernel->yield('_loop');
 }
 
 sub _add_worker {
     my ($kernel,$heap) = @_[KERNEL,HEAP];
 
-    my $filter_ref =
+    $heap->{stash}->{filter_ref} =
         POE::Filter::Reference->new(Serializer => 'Storable');
-    my $filter_line =
-        POE::Filter::Line->new();
 
     my $task = POE::Wheel::Run->new(
         Program         =>  ['oe','child'],
-        StdinFilter     =>  $filter_ref,
-        StdoutFilter    =>  $filter_line,
-        StderrFilter    =>  $filter_ref,
+        StdinFilter     =>  $heap->{stash}->{filter_ref},
+        StdoutFilter    =>  $heap->{stash}->{filter_line},
+        StderrFilter    =>  $heap->{stash}->{filter_ref},
         StdoutEvent     =>  "task_stdout",
         StderrEvent     =>  "task_stderr",
         StdinEvent      =>  "task_stdin",
         CloseEvent      =>  "task_exit",
     );
+
+    $heap->{stash}->{protocol} = 
+        App::OpusVL::Open::eREACT::Protocol->new($task);
 
     my $childwid    =  $task->ID;
     my $childpid    =  $task->PID;
@@ -105,7 +105,6 @@ sub _add_worker {
 
 sub _loop {
     my ($kernel,$heap) = @_[KERNEL,HEAP];
-
     $kernel->delay_add('_loop' => 1);
 }
 

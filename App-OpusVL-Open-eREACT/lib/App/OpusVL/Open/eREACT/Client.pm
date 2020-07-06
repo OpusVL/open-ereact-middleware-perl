@@ -17,6 +17,9 @@ use utf8;
 use open qw(:std :utf8);
 use experimental qw(signatures);
 
+# Internal modules (dist)
+use App::OpusVL::Open::eREACT::Protocol;
+
 # External modules
 use POE qw(Filter::Reference Wheel::ReadWrite Filter::Line);
 use Carp;
@@ -49,8 +52,6 @@ sub new {
             config          =>  {
                 bind_ip         =>  $bind_ip,
                 bind_port       =>  $bind_port,
-                tasks           =>  {
-                }
             }
         }
     );
@@ -60,17 +61,20 @@ sub new {
     return $self;  
 }
 
-
 sub _start {
     my ($kernel,$heap) = @_[KERNEL,HEAP];
 
-    $heap->{com} = POE::Wheel::ReadWrite->new(
-        InputHandle     =>  *STDIN,
-        OutputHandle    =>  *STDERR,
+    $heap->{stdio} = POE::Wheel::ReadWrite->new(
+        InputHandle     =>  \*STDIN,
+        OutputHandle    =>  \*STDERR,
         Filter          =>  POE::Filter::Reference->new(Serializer => 'Storable'),
         InputEvent      =>  "task_stdin",
     );
 
+    $heap->{stash}->{start_time}    =   time;
+    $heap->{stash}->{latency}       =   time;
+
+    $heap->{com}    =   App::OpusVL::Open::eREACT::Protocol->new($heap->{stdio});
 
     $kernel->yield('_loop');
 }
@@ -78,9 +82,16 @@ sub _start {
 sub _loop {
     my ($kernel,$heap) = @_[KERNEL,HEAP];
 
-    $heap->{com}->put(['TEST']);
+    my $latency = (time - $heap->{stash}->{latency});
 
-    $kernel->delay_add('_loop' => 1);
+    if ($latency > 10) {
+        say STDERR "Parent<->Child Latency exceeded 10 seconds, exiting.";
+        exit 1;
+    }
+
+    $heap->{com}->ping(time);
+
+    $kernel->delay_add('_loop' => 1,time);
 }
 
 sub _stop {
@@ -103,7 +114,7 @@ sub task_exit {
 
     my $child = delete $heap->{children_by_wid}->{$wheel_id};
 
-  # May have been reaped by on_child_signal().
+    # May have been reaped by on_child_signal().
     unless (defined $child) {
         print "wid $wheel_id closed all pipes.\n";
         return;

@@ -60,7 +60,7 @@ sub validate_args($self, $opt, $args) {
     my $common = Acme::CommandCommon->new(1);
 
     if ($common->exec('arrayref_length',$args) != 1) {
-        $self->usage_eror("Requires a bind server:port using 1 argument.");
+        $self->usage_error("Requires a bind server:port using 1 argument.");
     }
 
     my ($bind_ip,$bind_port) = $common->exec('split_on_seperator',$args->[0]);
