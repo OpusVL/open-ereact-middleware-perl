@@ -27,7 +27,7 @@ use experimental qw(signatures);
 
 # Internal App modules
 use App::OpusVL::Open::eREACT -command;
-use App::OpusVL::Open::eREACT::Client;
+use App::OpusVL::Open::eREACT::Node;
 
 # External modules
 use Carp;
@@ -62,7 +62,7 @@ sub validate_args {
 sub execute {
     my ($self, $opt, $args) = @_;
 
-    my $child = App::OpusVL::Open::eREACT::Client->new();
+    my $child = App::OpusVL::Open::eREACT::Node->new();
     POE::Kernel->run();
 }
 

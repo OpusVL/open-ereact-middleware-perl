@@ -1,8 +1,8 @@
-package App::OpusVL::Open::eREACT::Client;
+package App::OpusVL::Open::eREACT::Node;
 
 =head1 NAME
 
-App::OpusVL::Open::eREACT::Command::Core - Primary engine
+App::OpusVL::Open::eREACT::Command::Node - Primary engine
 
 =cut
 
