@@ -49,7 +49,8 @@ sub new {
             $self => [qw(_start _loop _stop)]
         ],
         heap            =>  {
-            common          =>  Magnum::OpusVL::CommandCommon->new(1),
+            common          =>  Acme::CommandCommon->new(1),
+            protocol        =>  POE::Component::FunctionNet::Protocol->new(),
             options         =>  $opts
         }
     );
@@ -66,7 +67,11 @@ sub _start {
         POE::Filter::Reference->new(Serializer => 'Storable');
 
     if ($heap->{options}->{mode} eq 'master') {
-        $kernel->post($heap->{options}->{master},'com',"hello");
+        $kernel->post(
+            $heap->{options}->{master},
+            $heap->{options}->{handler},
+            'HELO'
+        );
     }
 
     $kernel->yield('_loop');
