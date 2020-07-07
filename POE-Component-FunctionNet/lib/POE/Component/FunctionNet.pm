@@ -44,12 +44,9 @@ sub new {
         session => 0,
     }, $class;
 
-    use Data::Dumper;
-    say Dumper($opts);
-
     $self->{session} = POE::Session->create(
         object_states   => [
-            $self => [qw(_start _loop _stop)]
+            $self => [qw(_start _loop _stop com)]
         ],
         heap            =>  {
             common          =>  Acme::CommandCommon->new(1),
@@ -64,23 +61,29 @@ sub new {
 }
 
 sub _start {
-    my ($kernel,$heap) = @_[KERNEL,HEAP];
+    my ($kernel,$heap,$session) = @_[KERNEL,HEAP,SESSION];
 
     $heap->{stash}->{filter_ref} =
         POE::Filter::Reference->new(Serializer => 'Storable');
-
-    say "mode: ".$heap->{options}->{mode};
-    say "handler: ".$heap->{options}->{handler};
 
     if ($heap->{options}->{mode} eq 'master') {
         $kernel->post(
             $heap->{options}->{master},
             $heap->{options}->{handler},
-            'HELO'
+            {
+                command =>  'HELO',
+                id      =>  $session->ID
+            }
         );
     }
 
     $kernel->yield('_loop');
+}
+use Data::Dumper;
+sub com {
+    my ($kernel,$heap,$sessian,$data) = @_[KERNEL,HEAP,SESSION,ARG0];
+
+    say 'Got: '.Dumper($data);
 }
 
 sub _add_worker {

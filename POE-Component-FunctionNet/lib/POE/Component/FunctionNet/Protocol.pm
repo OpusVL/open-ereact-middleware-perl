@@ -38,8 +38,8 @@ sub ping($self,@args) {
     return ['PING',@args];
 }
 
-sub hello($self,@args) {
-    return ['HELLO',@args];
+sub helo($self,@args) {
+    return ['HELO',@args];
 }
 
 sub process($self,@args) {
