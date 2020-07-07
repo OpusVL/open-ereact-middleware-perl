@@ -28,7 +28,7 @@ use open qw(:std :utf8);
 use experimental qw(signatures);
 
 # External modules
-use POE qw(Wheel::Run Filter::Reference);
+use POE qw(Wheel::Run Filter::Reference Component::FunctionNet::Protocol);
 use Carp;
 use Acme::CommandCommon;
 
@@ -43,6 +43,9 @@ sub new {
         alias   => __PACKAGE__,
         session => 0,
     }, $class;
+
+    use Data::Dumper;
+    say Dumper($opts);
 
     $self->{session} = POE::Session->create(
         object_states   => [
@@ -65,6 +68,9 @@ sub _start {
 
     $heap->{stash}->{filter_ref} =
         POE::Filter::Reference->new(Serializer => 'Storable');
+
+    say "mode: ".$heap->{options}->{mode};
+    say "handler: ".$heap->{options}->{handler};
 
     if ($heap->{options}->{mode} eq 'master') {
         $kernel->post(
