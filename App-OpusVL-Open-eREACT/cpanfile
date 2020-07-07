@@ -3,3 +3,5 @@ requires 'Storable';
 requires 'POE';
 requires 'POE::Filter::Reference';
 requires 'POE::Wheel::Run';
+#requires 'POE::Component::FunctionBus';
+requires 'Acme::CommandCommon';
