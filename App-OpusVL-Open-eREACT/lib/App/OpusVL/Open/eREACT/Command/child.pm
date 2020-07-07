@@ -1,4 +1,4 @@
-package App::OpusVL::Open::eREACT::Command::child;
+package App::OpusVL::Open::eREACT::Command::node;
 
 =head1 NAME
 

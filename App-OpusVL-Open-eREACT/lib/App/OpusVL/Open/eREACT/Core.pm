@@ -55,6 +55,9 @@ sub new {
                 bind_port       =>  $bind_port,
                 tasks           =>  {
                 }
+            },
+            stash           =>  {
+                workerid    =>  1,
             }
         }
     );
@@ -70,9 +73,6 @@ sub _start {
 
     $heap->{stash}->{filter_ref} =
         POE::Filter::Reference->new(Serializer => 'Storable');
-
-    $heap->{stash}->{protocol} = 
-        App::OpusVL::Open::eREACT::Protocol->new($task);
 
     $kernel->yield('_add_worker');
     $kernel->yield('_loop');
@@ -92,6 +92,13 @@ sub _add_worker {
         CloseEvent      =>  "task_exit",
     );
 
+    my $workerid    =   'worker'.$heap->{stash}->{workerid}++;
+
+    $heap->{workers}->{$workerid} = {
+        task        =>  $task,
+        protocol    =>  App::OpusVL::Open::eREACT::Protocol->new($task)
+    };
+
     my $childwid    =  $task->ID;
     my $childpid    =  $task->PID;
 
@@ -99,8 +106,8 @@ sub _add_worker {
 
     $kernel->sig_child($childpid, "got_child_signal");
 
-    $heap->{children_by_wid}->{$childwid} = $task;
-    $heap->{children_by_pid}->{$childpid} = $task;
+    $heap->{children_by_wid}->{$childwid} = $workerid;
+    $heap->{children_by_pid}->{$childpid} = $workerid;
 }
 
 sub _loop {
@@ -113,35 +120,44 @@ sub _stop {
 }
 
 sub task_stderr {
-    my ($heap, $stdout_line, $wheel_id) = @_[HEAP, ARG0, ARG1];
+    my ($heap, $stderr_line, $wheel_id) = @_[HEAP, ARG0, ARG1];
 
-    my $stdout = $stdout_line->[0];
+    my $workerid    =   $heap->{children_by_wid}->{$wheel_id};
+    my $child       =   $heap->{workers}->{$workerid}->{task};
 
-    my $child = $heap->{children_by_wid}->{$wheel_id};
-    print "pid ", $child->PID, " STDERR: $stdout\n";
+    my $protocol    =   $heap->{workers}->{$workerid}->{protocol};
+
+    my ($cmd,@args) =   $protocol->process(@{$stderr_line});
+
+    my $output      =   join(' ','pid',$child->PID,"STDERR($cmd)",join(',',@args));
+
+    say $output;
 }
 
 sub task_stdout {
     my ($heap, $stderr_line, $wheel_id) = @_[HEAP, ARG0, ARG1];
 
-    my $child = $heap->{children_by_wid}->{$wheel_id};
+    my $workerid    =   $heap->{children_by_wid}->{$wheel_id};
+    my $child       =   $heap->{workers}->{$workerid}->{task};
+
     print "pid ", $child->PID, " STDOUT: $stderr_line\n";
 }
 
 sub task_stdin {
     my ($heap, $stderr_line, $wheel_id) = @_[HEAP, ARG0, ARG1];
 
-    my $child = $heap->{children_by_wid}->{$wheel_id};
+    my $child = $heap->{children_by_wid}->{$wheel_id}->{task};
     print "pid ", $child->PID, " STDIN: $stderr_line\n";
 }
 
 sub task_exit {
     my ($heap,$wheel_id) = @_[HEAP,ARG0];
 
-    my $child = delete $heap->{children_by_wid}->{$wheel_id};
+    my $workerid    =   delete $heap->{children_by_wid}->{$wheel_id};
+    my $child       =   delete $heap->{workers}->{$workerid};
 
-  # May have been reaped by on_child_signal().
-     unless (defined $child) {
+    # May have been reaped by on_child_signal().
+     unless (defined $child->{task}) {
         print "wid $wheel_id closed all pipes.\n";
         return;
     }

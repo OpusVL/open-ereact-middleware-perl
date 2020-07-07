@@ -44,4 +44,8 @@ sub ping($self,@args) {
     $self->{parent}->put(['PING',@args]);
 }
 
+sub process($self,@args) {
+    
+}
+
 1;
