@@ -82,7 +82,7 @@ sub _add_worker {
     my ($kernel,$heap) = @_[KERNEL,HEAP];
 
     my $task = POE::Wheel::Run->new(
-        Program         =>  ['oe','child'],
+        Program         =>  ['oe','node'],
         StdinFilter     =>  $heap->{stash}->{filter_ref},
         StdoutFilter    =>  $heap->{stash}->{filter_line},
         StderrFilter    =>  $heap->{stash}->{filter_ref},
