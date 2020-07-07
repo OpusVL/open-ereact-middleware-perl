@@ -44,6 +44,7 @@ sub new {
         ],
         heap            =>  {
             common          =>  Acme::CommandCommon->new(1),
+            com             =>  POE::Component::FunctionNet::Protocol->new(),
             config          =>  {
                 bind_ip         =>  $bind_ip,
                 bind_port       =>  $bind_port,
@@ -76,14 +77,46 @@ sub _start {
     $heap->{functionnet}->{obj} = 
         POE::Component::FunctionNet->new($functionNetConfig);
 
+    $kernel->yield(
+        '_send',
+        {
+            command =>  'HELO',
+            id      =>  $session->ID
+        }
+    );
+
+    # Start the 'plan' controller
+
     $kernel->yield('_loop');
 }
 
 sub com {
-    my ($kernel,$heap,$session,$arg) = @_[KERNEL,HEAP,SESSION,ARG0];
-    say "ARG: $arg";
+    my ($kernel,$heap,$session,$sender,$data) = 
+        @_[KERNEL,HEAP,SESSION,SENDER,ARG0];
+
+    if ($data->{command} eq 'HELO') {
+        $kernel->yield(
+            '_send',
+            {
+                command =>  'LOAD',
+                module  =>  'PLAN'
+            }
+        );
+    }
 }
 
+sub _send {
+    my ($kernel,$heap,$session,$packet) = @_[KERNEL,HEAP,SESSION,ARG0];
+
+    $kernel->post(
+        $heap->{functionnet}->{obj}->{id},
+        'com',
+        {
+            command =>  'HELO',
+            id      =>  $session->ID
+        }
+    );
+}
 
 sub _loop {
     my ($kernel,$heap) = @_[KERNEL,HEAP];
@@ -93,6 +126,5 @@ sub _loop {
 sub _stop {
     say "_stop called";
 }
-
 
 1;

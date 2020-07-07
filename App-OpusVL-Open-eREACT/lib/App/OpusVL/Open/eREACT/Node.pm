@@ -18,10 +18,10 @@ use open qw(:std :utf8);
 use experimental qw(signatures);
 
 # Internal modules (dist)
-use App::OpusVL::Open::eREACT::Protocol;
+use POE::Component::FunctionNet::Protocol;
 
 # External modules
-use POE qw(Filter::Reference Wheel::ReadWrite Filter::Line);
+use POE qw(Filter::Reference Wheel::ReadWrite Component::FunctionNet);
 use Carp;
 use Acme::CommandCommon;
 
@@ -74,7 +74,7 @@ sub _start {
     $heap->{stash}->{start_time}    =   time;
     $heap->{stash}->{latency}       =   time;
 
-    $heap->{com}    =   App::OpusVL::Open::eREACT::Protocol->new($heap->{stdio});
+    $heap->{com}    =   POE::Component::FunctionNet::Protocol->new($heap->{stdio});
 
     $kernel->yield('_loop');
 }
