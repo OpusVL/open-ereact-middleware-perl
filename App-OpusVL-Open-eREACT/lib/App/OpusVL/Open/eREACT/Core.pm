@@ -18,7 +18,7 @@ use open qw(:std :utf8);
 use experimental qw(signatures);
 
 # External modules
-use POE qw(Wheel::Run Filter::Reference Component::FunctionNet);
+use POE qw(Wheel::Run Component::FunctionNet);
 use Carp;
 use Acme::CommandCommon;
 
@@ -26,7 +26,7 @@ use Acme::CommandCommon;
 our $VERSION = '0.001';
 
 sub new {
-    my ($class,$bind_ip,$bind_port) = @_;
+    my ($class) = @_;
 
     my $self = bless {
         alias   => __PACKAGE__,
@@ -39,15 +39,13 @@ sub new {
                 _start
                 _loop
                 _stop
+                _send
                 com
             )]
         ],
         heap            =>  {
             common          =>  Acme::CommandCommon->new(1),
-            com             =>  POE::Component::FunctionNet::Protocol->new(),
             config          =>  {
-                bind_ip         =>  $bind_ip,
-                bind_port       =>  $bind_port,
                 tasks           =>  {}
             },
             stash           =>  {
@@ -61,32 +59,23 @@ sub new {
     return $self;
 }
 
-
 sub _start {
     my ($kernel,$heap,$session) = @_[KERNEL,HEAP,SESSION];
 
-    $heap->{stash}->{filter_ref} =
-        POE::Filter::Reference->new(Serializer => 'Storable');
-
-    my $functionNetConfig       =   {
-        mode    =>  'master',
-        master  =>  $session->ID,
-        handler =>  'com'
-    };
-
     $heap->{functionnet}->{obj} = 
-        POE::Component::FunctionNet->new($functionNetConfig);
+        POE::Component::FunctionNet->new('master');
 
+    # Could use this to register as an exterior log store
     $kernel->yield(
         '_send',
         {
             command =>  'HELO',
-            id      =>  $session->ID
+            id      =>  $session->ID,
+            handler =>  'com'
         }
     );
 
     # Start the 'plan' controller
-
     $kernel->yield('_loop');
 }
 
@@ -94,12 +83,18 @@ sub com {
     my ($kernel,$heap,$session,$sender,$data) = 
         @_[KERNEL,HEAP,SESSION,SENDER,ARG0];
 
+    use Data::Dumper;
+    say Dumper($data);
+
     if ($data->{command} eq 'HELO') {
         $kernel->yield(
             '_send',
             {
                 command =>  'LOAD',
-                module  =>  'PLAN'
+                args    =>  [
+                    'perl',
+                    '/home/paul.webster/Work/Project-DigiMiddleware/open-ereact-middleware-perl/plugins/plan.pl'
+                ]
             }
         );
     }
@@ -111,10 +106,7 @@ sub _send {
     $kernel->post(
         $heap->{functionnet}->{obj}->{id},
         'com',
-        {
-            command =>  'HELO',
-            id      =>  $session->ID
-        }
+        $packet
     );
 }
 

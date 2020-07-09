@@ -18,7 +18,7 @@ use open qw(:std :utf8);
 use experimental qw(signatures);
 
 # Internal modules (dist)
-use POE::Component::FunctionNet::Protocol;
+
 
 # External modules
 use POE qw(Filter::Reference Wheel::ReadWrite Component::FunctionNet);
@@ -42,17 +42,11 @@ sub new {
                 _start
                 _loop
                 _stop
-                task_stdin
-                task_stdout
-                task_exit
+                com
             )]
         ],
         heap            =>  {
             common          =>  Acme::CommandCommon->new(1),
-            config          =>  {
-                bind_ip         =>  $bind_ip,
-                bind_port       =>  $bind_port,
-            }
         }
     );
 
@@ -64,17 +58,16 @@ sub new {
 sub _start {
     my ($kernel,$heap) = @_[KERNEL,HEAP];
 
-    $heap->{stdio} = POE::Wheel::ReadWrite->new(
-        InputHandle     =>  \*STDIN,
-        OutputHandle    =>  \*STDERR,
-        Filter          =>  POE::Filter::Reference->new(Serializer => 'Storable'),
-        InputEvent      =>  "task_stdin",
-    );
+    my $functionNetConfig       =   {
+        mode    =>  'plugin',
+        handler =>  'com'
+    };
+
+    $heap->{functionnet}->{obj} =
+        POE::Component::FunctionNet->new($functionNetConfig);
 
     $heap->{stash}->{start_time}    =   time;
     $heap->{stash}->{latency}       =   time;
-
-    $heap->{com}    =   POE::Component::FunctionNet::Protocol->new($heap->{stdio});
 
     $kernel->yield('_loop');
 }
@@ -89,7 +82,9 @@ sub _loop {
         exit 1;
     }
 
-    $heap->{com}->ping(time);
+    say '_loop';
+
+    #$heap->{com}->ping(time);
 
     $kernel->delay_add('_loop' => 1,time);
 }
@@ -97,43 +92,12 @@ sub _loop {
 sub _stop {
 }
 
-sub task_stdout {
-    my ($heap, $stderr_line, $wheel_id) = @_[HEAP, ARG0, ARG1];
+sub com {
+    my ($kernel,$heap,$session,$sender,$data) = 
+        @_[KERNEL,HEAP,SESSION,SENDER,ARG0];
 
-    my $child = $heap->{children_by_wid}->{$wheel_id};
-    print "pid ", $child->PID, " STDOUT: $stderr_line\n";
+    warn "COM CALLED";
 }
 
-sub task_stdin {
-    my ($input, $wheel_id) = @_[ARG0, ARG1];
-    warn $input;
-}
-
-sub task_exit {
-    my ($heap,$wheel_id) = @_[HEAP,ARG0];
-
-    my $child = delete $heap->{children_by_wid}->{$wheel_id};
-
-    # May have been reaped by on_child_signal().
-    unless (defined $child) {
-        print "wid $wheel_id closed all pipes.\n";
-        return;
-    }
-
-    print "pid ", $child->PID, " closed all pipes.\n";
-    delete $heap->{children_by_pid}->{$child->PID};
-}
-
-sub sig_child {
-    my ($heap,$pid,$status) = @_[HEAP,ARG0,ARG1];
-
-    print "pid $pid exited with status $status.\n";
-    my $child = delete $heap->{children_by_pid}->{$pid};
-
-    # May have been reaped by on_child_close().
-    return unless defined $child;
-
-    delete $heap->{children_by_wid}->{$child->ID};
-}
 
 1;
