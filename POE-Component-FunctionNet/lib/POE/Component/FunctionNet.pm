@@ -22,13 +22,16 @@ use feature 'say';
 use strict;
 use warnings;
 
+# Internal per modules (debug)
+use Data::Dumper;
+
 # Internal perl modules (core,recommended)
 use utf8;
 use open qw(:std :utf8);
 use experimental qw(signatures);
 
 # External modules
-use POE qw(Wheel::Run Filter::Reference Component::FunctionNet::Protocol);
+use POE qw(Wheel::Run Session Filter::Reference Wheel::ReadWrite Component::FunctionNet::Protocol);
 use Carp;
 use Acme::CommandCommon;
 
@@ -37,7 +40,7 @@ our $VERSION = '0.001';
 
 # Primary code block
 sub new {
-    my ($class,$opts) = @_;
+    my ($class,$runmode) = @_;
 
     my $self = bless {
         alias   => __PACKAGE__,
@@ -46,12 +49,29 @@ sub new {
 
     $self->{session} = POE::Session->create(
         object_states   => [
-            $self => [qw(_start _loop _stop com)]
+            $self => [qw(
+                _start
+                _loop
+                _stop
+                _load
+                _start_as_master
+                _start_as_provider
+                com
+                send
+            )]
         ],
         heap            =>  {
             common          =>  Acme::CommandCommon->new(1),
-            protocol        =>  POE::Component::FunctionNet::Protocol->new(),
-            options         =>  $opts
+            runmode         =>  $runmode,
+            filter          =>  {
+                line            =>  POE::Filter::Line->new(Literal => "\n"),
+                reference       =>  POE::Filter::Reference->new(Serializer => 'Storable')
+            },
+            plugins         =>  {
+                state           =>  {
+                    id              =>  0
+                }
+            }
         }
     );
 
@@ -63,59 +83,196 @@ sub new {
 sub _start {
     my ($kernel,$heap,$session) = @_[KERNEL,HEAP,SESSION];
 
-    $heap->{stash}->{filter_ref} =
-        POE::Filter::Reference->new(Serializer => 'Storable');
+    my $mode = $heap->{runmode};
 
-    if ($heap->{options}->{mode} eq 'master') {
-        $kernel->post(
-            $heap->{options}->{master},
-            $heap->{options}->{handler},
-            {
-                command =>  'HELO',
-                id      =>  $session->ID
-            }
-        );
+    if (!$mode) {
+        die "No runmode passed";
+    }
+
+    if      ($mode eq 'master')     {
+        $kernel->call($session->ID,'_start_as_master');
+    }
+    elsif   ($mode eq 'provider')   {
+        $kernel->call($session->ID,'_start_as_provider');
+    }
+    else                            {
+        die "No idea what mode = $mode means";
     }
 
     $kernel->yield('_loop');
 }
-use Data::Dumper;
-sub com {
-    my ($kernel,$heap,$sessian,$data) = @_[KERNEL,HEAP,SESSION,ARG0];
 
-    say 'Got: '.Dumper($data);
+sub _start_as_master {
+    my ($kernel,$heap,$session,$self) = @_[KERNEL,HEAP,SESSION,OBJECT];
+
+    # What should happen here as with _start_as_provider is a POE::Session for 
+    # dealing with this interface should occur
 }
 
-sub _add_worker {
-    my ($kernel,$heap) = @_[KERNEL,HEAP];
+sub _start_as_provider {
+    my ($kernel,$heap,$session,$self) = @_[KERNEL,HEAP,SESSION,OBJECT];
 
-    my $task = POE::Wheel::Run->new(
-        Program         =>  ['oe','node'],
-        StdinFilter     =>  $heap->{stash}->{filter_ref},
-        StdoutFilter    =>  $heap->{stash}->{filter_line},
-        StderrFilter    =>  $heap->{stash}->{filter_ref},
-        StdoutEvent     =>  "task_stdout",
-        StderrEvent     =>  "task_stderr",
-        StdinEvent      =>  "task_stdin",
-        CloseEvent      =>  "task_exit",
+    my $interface = POE::Session->create(
+          inline_states => {
+            _start => sub { 
+                $_[KERNEL]->yield("start_process");
+            },
+            next   => sub {
+                $_[KERNEL]->delay(next => 1);
+            },
+            start_process   =>  sub {
+                my ($kernel,$heap) = @_[KERNEL, HEAP];
+
+                my $wheel = POE::Wheel::ReadWrite->new(
+                    InputHandle     =>  \*STDIN,
+                    OutputHandle    =>  \*STDERR,
+                    Filter          =>  POE::Filter::Reference->new(Serializer => 'Storable'),
+                    InputEvent      =>  "task_stdin",
+                );
+
+                $heap->{process}    =   $wheel;
+
+                my $command = {
+                    command =>  'HELO'
+                };
+                $heap->{process}->put($command);
+
+                $kernel->yield("next");
+            },
+            task_stdin       =>  sub {
+                my ($heap, $stderr_line, $wheel_id) = @_[HEAP, ARG0, ARG1];
+
+                my $child       =   $heap->{process};
+                my $command = {
+                    command =>  'GOTCHA!',
+                    details =>  $stderr_line
+                };
+                $heap->{process}->put($command);
+            },
+            send                => sub {
+                my ($kernel,$heap,$data) = @_[KERNEL,HEAP,ARG0];
+                $heap->{process}->put($data);
+            }
+        },
     );
 
-    my $workerid    =   'worker'.$heap->{stash}->{workerid}++;
+    $self->{interface} = $interface;
+}
 
-    $heap->{workers}->{$workerid} = {
-        task        =>  $task,
-        protocol    =>  App::OpusVL::Open::eREACT::Protocol->new($task)
-    };
+sub com {
+    my ($kernel,$heap,$sessian,$sender,$data) = @_[KERNEL,HEAP,SESSION,SENDER,ARG0];
 
-    my $childwid    =  $task->ID;
-    my $childpid    =  $task->PID;
+    my $command = $data->{command};
 
-    say "Child started with pid $childpid";
+    if      ($command eq 'HELO') {
+        if (!$heap->{admin}) {
+            my $admin_id = $sender->ID;
+            my $admin_handler = $data->{handler};
 
-    $kernel->sig_child($childpid, "got_child_signal");
+            $heap->{admin}->{id} = $admin_id;
+            $heap->{admin}->{handler} = $admin_handler;
 
-    $heap->{children_by_wid}->{$childwid} = $workerid;
-    $heap->{children_by_pid}->{$childpid} = $workerid;
+            say "Admin registered as: $admin_id,$admin_handler";
+
+            my $greeting = {
+                command =>  'HELO'
+            };
+            $kernel->post($admin_id,$admin_handler,$greeting);
+        }
+    }
+    elsif   ($command eq 'LOAD') {
+        # Load a worker and a module
+        my @args = @{$data->{args}};
+        $kernel->yield('_load',@args);
+    }
+}
+
+sub _load {
+    my ($parent_kernel,$parent_heap,@args) = @_[KERNEL,HEAP,ARG0 .. $#_];
+
+    say STDERR "Loading: ".join(',',@args);
+
+    my $internal_id = $parent_heap->{plugins}->{state}->{id}++;
+
+    my $session = POE::Session->create(
+          inline_states => {
+            _start => sub { 
+                $_[KERNEL]->yield("next");
+                $_[KERNEL]->yield('start_process');
+            },
+            next   => sub {
+                $_[KERNEL]->delay(next => 1);
+            },
+            start_process   =>  sub {
+                my ($kernel,$heap) = @_[KERNEL, HEAP];
+
+                $heap->{filter} = POE::Filter::Reference->new(Serializer => 'Storable');
+
+                my $task = POE::Wheel::Run->new(
+                    Program         =>  [@args],
+                    StdinFilter     =>  $heap->{filter},
+                    StdoutFilter    =>  POE::Filter::Line->new(Literal => "\n"),
+                    StderrFilter    =>  $heap->{filter},
+                    StdoutEvent     =>  "task_stdout",
+                    StderrEvent     =>  "task_stderr",
+                    StdinEvent      =>  "task_stdin",
+                    CloseEvent      =>  "task_exit",
+                );
+
+                $heap->{process}    =   $task;
+
+                my $childpid        =   $task->PID;
+
+                say "Child started with pid $childpid";
+
+                $kernel->sig_child($childpid, "task_exit");
+            },
+            task_stdout     =>  sub {
+                my ($heap, $stdout_line, $wheel_id) = @_[HEAP, ARG0, ARG1];
+
+                my $child       =   $heap->{process};
+
+                say "pid ", $child->PID, " STDOUT: ",Dumper($stdout_line);
+            },
+            task_stderr     =>  sub {
+                my ($heap, $stderr_line, $wheel_id) = @_[HEAP, ARG0, ARG1];
+
+                my $child       =   $heap->{process};
+                my $command     =   $stderr_line->{command};
+
+                if ($command eq 'register') {
+                    $child->put({command=>'boop'});
+                }
+
+                say join(' ','STDERR',Dumper($stderr_line));
+            },
+            task_stdin      =>  sub {
+                my ($heap, $stderr_line, $wheel_id) = @_[HEAP, ARG0, ARG1];
+
+                my $child       =   $heap->{process};
+
+                #print "pid ", $child->PID, " STDIN: $stderr_line\n";
+            },
+            task_exit       =>  sub {
+                my ($heap,$wheel_id) = @_[HEAP,ARG0];
+
+                my $child       =   delete $heap->{process};
+
+                # May have been reaped by on_child_signal().
+                unless (defined $child) {
+                    print "wid $wheel_id closed all pipes.\n";
+                    return;
+                }
+
+                my $pid = $child->PID;
+
+                print "pid $pid closed all pipes.\n";
+                delete $heap->{child}
+            }
+        },
+    );
+
+    $parent_heap->{plugins}->{sessions}->{$internal_id} = $session;
 }
 
 sub _loop {
@@ -127,64 +284,36 @@ sub _stop {
     say "_stop called";
 }
 
-sub task_stderr {
-    my ($heap, $stderr_line, $wheel_id) = @_[HEAP, ARG0, ARG1];
 
-    my $workerid    =   $heap->{children_by_wid}->{$wheel_id};
-    my $child       =   $heap->{workers}->{$workerid}->{task};
 
-    my $protocol    =   $heap->{workers}->{$workerid}->{protocol};
+=head2 Object methods (for plugins)
 
-    my ($cmd,@args) =   $protocol->process(@{$stderr_line});
+=head3 register
 
-    my $output      =   join(' ','pid',$child->PID,"STDERR($cmd)",join(',',@args));
+Register what functions the plugin offers
 
-    say $output;
+=cut
+
+sub register($self,$functions) {
+    POE::Kernel->post(
+        $self->{interface}->ID,
+        'send',
+        { 
+            command=>'register', 
+            args=>$functions 
+        }
+    );
 }
 
-sub task_stdout {
-    my ($heap, $stderr_line, $wheel_id) = @_[HEAP, ARG0, ARG1];
-
-    my $workerid    =   $heap->{children_by_wid}->{$wheel_id};
-    my $child       =   $heap->{workers}->{$workerid}->{task};
-
-    print "pid ", $child->PID, " STDOUT: $stderr_line\n";
+sub _send($target,$data) {
+    return
+        POE::Kernel->post($target,'relay',$data);
 }
 
-sub task_stdin {
-    my ($heap, $stderr_line, $wheel_id) = @_[HEAP, ARG0, ARG1];
-
-    my $child = $heap->{children_by_wid}->{$wheel_id}->{task};
-    print "pid ", $child->PID, " STDIN: $stderr_line\n";
+sub send {
+    die "GOT MASTER LEVEL SEND";
 }
 
-sub task_exit {
-    my ($heap,$wheel_id) = @_[HEAP,ARG0];
-
-    my $workerid    =   delete $heap->{children_by_wid}->{$wheel_id};
-    my $child       =   delete $heap->{workers}->{$workerid};
-
-    # May have been reaped by on_child_signal().
-     unless (defined $child->{task}) {
-        print "wid $wheel_id closed all pipes.\n";
-        return;
-    }
-
-    print "pid ", $child->PID, " closed all pipes.\n";
-    delete $heap->{children_by_pid}->{$child->PID};
-}
-
-sub sig_child {
-    my ($heap,$pid,$status) = @_[HEAP,ARG0,ARG1];
-
-    print "pid $pid exited with status $status.\n";
-    my $child = delete $heap->{children_by_pid}->{$pid};
-
-    # May have been reaped by on_child_close().
-    return unless defined $child;
-
-    delete $heap->{children_by_wid}->{$child->ID};
-}
 
 =head1 AUTHOR
 
