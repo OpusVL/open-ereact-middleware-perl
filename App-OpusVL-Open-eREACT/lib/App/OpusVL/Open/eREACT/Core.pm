@@ -18,7 +18,7 @@ use open qw(:std :utf8);
 use experimental qw(signatures);
 
 # External modules
-use POE qw(Wheel::Run Component::FunctionNet);
+use POE qw(Wheel::Run Component::FunctionNet::Interface);
 use Carp;
 use Acme::CommandCommon;
 
@@ -39,19 +39,9 @@ sub new {
                 _start
                 _loop
                 _stop
-                _send
-                com
             )]
         ],
-        heap            =>  {
-            common          =>  Acme::CommandCommon->new(1),
-            config          =>  {
-                tasks           =>  {}
-            },
-            stash           =>  {
-                workerid    =>  1,
-            }
-        }
+        heap            =>  {}
     );
 
     $self->{id} = $self->{session}->ID;
@@ -62,52 +52,17 @@ sub new {
 sub _start {
     my ($kernel,$heap,$session) = @_[KERNEL,HEAP,SESSION];
 
-    $heap->{functionnet}->{obj} = 
-        POE::Component::FunctionNet->new('master');
+    $heap->{functionnet} = POE::Component::FunctionNet::Interface->new();
 
-    # Could use this to register as an exterior log store
-    $kernel->yield(
-        '_send',
-        {
-            command =>  'HELO',
-            id      =>  $session->ID,
-            handler =>  'com'
-        }
-    );
+    # We now can make object calls to FunctionNet
+    # Tell this function net it will be the controller of the network
+    $heap->{functionnet}->load([
+        'perl',
+        '/home/paul.webster/Work/Project-DigiMiddleware/open-ereact-middleware-perl/plugins/plan.pl'
+    ]);
 
     # Start the 'plan' controller
     $kernel->yield('_loop');
-}
-
-sub com {
-    my ($kernel,$heap,$session,$sender,$data) = 
-        @_[KERNEL,HEAP,SESSION,SENDER,ARG0];
-
-    use Data::Dumper;
-    say Dumper($data);
-
-    if ($data->{command} eq 'HELO') {
-        $kernel->yield(
-            '_send',
-            {
-                command =>  'LOAD',
-                args    =>  [
-                    'perl',
-                    '/home/paul.webster/Work/Project-DigiMiddleware/open-ereact-middleware-perl/plugins/plan.pl'
-                ]
-            }
-        );
-    }
-}
-
-sub _send {
-    my ($kernel,$heap,$session,$packet) = @_[KERNEL,HEAP,SESSION,ARG0];
-
-    $kernel->post(
-        $heap->{functionnet}->{obj}->{id},
-        'com',
-        $packet
-    );
 }
 
 sub _loop {

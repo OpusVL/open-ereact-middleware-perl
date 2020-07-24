@@ -75,10 +75,7 @@ sub validate_args($self, $opt, $args) {
 }
 
 sub execute($self, $opt, $args) {
-    $self->{core} = App::OpusVL::Open::eREACT::Core->new(
-        $opt->{bind}->{ip},
-        $opt->{bind}->{port}
-    );
+    $self->{core} = App::OpusVL::Open::eREACT::Core->new();
     POE::Kernel->run();
 }
 

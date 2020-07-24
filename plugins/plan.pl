@@ -14,19 +14,27 @@ use experimental qw(signatures);
 # External modules
 use Carp;
 use Acme::CommandCommon;
-use POE qw(Component::FunctionNet);
+use POE qw(Component::FunctionNet::Interface);
+
+use Data::Dumper;
 
 # Version of this software
 my $VERSION = '0.001';
 
-# What do we offer
-my $offer = [qw(plan)];
+our $handler =   \&handler;
 
 exit do { main(); POE::Kernel->run() };
 
 sub main {
-    my $interface   = 
-        POE::Component::FunctionNet->new('provider');
+    my $interface   =
+        POE::Component::FunctionNet::Interface->new($handler,'plan.pl');
 
-    $interface->register($offer);
+    $interface->attach;
+
+    $interface->offer('test_func');
+}
+
+sub handler($packet) {
+    warn "handler (plan.pl)";
+    warn Dumper($packet);
 }
